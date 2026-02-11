@@ -46,9 +46,31 @@
     border-radius: 8px;
     cursor: pointer;
   }
+  #gyro-btn {
+    display: none;
+    padding: 10px 20px;
+    font-size: 16px;
+    border: 1px solid #0f0;
+    background: #16213e;
+    color: #0f0;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  #gyro-btn.active {
+    background: #0f0;
+    color: #1a1a2e;
+  }
+  #tilt-indicator {
+    display: none;
+    font-size: 14px;
+    color: #666;
+    height: 20px;
+  }
   @media (pointer: coarse) {
     .controls { display: grid; grid-template-columns: repeat(3, 56px); justify-items: center; }
     .controls button:active { background: #0f03; }
+    #gyro-btn { display: inline-block; }
+    #tilt-indicator { display: block; }
   }
 </style>
 </head>
@@ -56,6 +78,8 @@
   <div id="header">Score: <span id="score">0</span> &nbsp; Best: <span id="best">0</span></div>
   <canvas id="game" width="400" height="400"></canvas>
   <div id="message">Press any arrow key or tap to start</div>
+  <button id="gyro-btn" onclick="toggleGyro()">Enable Tilt Controls</button>
+  <div id="tilt-indicator"></div>
   <div class="controls">
     <div></div><button onclick="setDir(0,-1)">&#9650;</button><div></div>
     <button onclick="setDir(-1,0)">&#9664;</button>
@@ -171,6 +195,67 @@ canvas.addEventListener('touchend', e => {
   if (Math.abs(dx) > Math.abs(dy)) setDir(dx > 0 ? 1 : -1, 0);
   else setDir(0, dy > 0 ? 1 : -1);
 });
+
+// Gyroscope / tilt controls
+let gyroEnabled = false;
+const gyroBtn = document.getElementById('gyro-btn');
+const tiltEl = document.getElementById('tilt-indicator');
+const TILT_THRESHOLD = 15; // degrees of tilt needed to trigger direction change
+
+function handleOrientation(e) {
+  if (!gyroEnabled || !running) return;
+
+  const beta = e.beta;   // front-to-back tilt: -180 to 180 (positive = tilted forward)
+  const gamma = e.gamma;  // left-to-right tilt: -90 to 90 (positive = tilted right)
+
+  tiltEl.textContent = `Tilt: L/R ${Math.round(gamma)}° F/B ${Math.round(beta)}°`;
+
+  const absGamma = Math.abs(gamma);
+  const absBeta = Math.abs(beta);
+
+  // Only change direction if tilt exceeds threshold
+  if (absGamma < TILT_THRESHOLD && absBeta < TILT_THRESHOLD) return;
+
+  // Pick the stronger axis
+  if (absGamma > absBeta) {
+    // left/right tilt dominates
+    setDir(gamma > 0 ? 1 : -1, 0);
+  } else {
+    // forward/back tilt dominates
+    setDir(0, beta > 0 ? 1 : -1);
+  }
+}
+
+async function toggleGyro() {
+  if (gyroEnabled) {
+    gyroEnabled = false;
+    window.removeEventListener('deviceorientation', handleOrientation);
+    gyroBtn.textContent = 'Enable Tilt Controls';
+    gyroBtn.classList.remove('active');
+    tiltEl.textContent = '';
+    return;
+  }
+
+  // iOS 13+ requires permission request from a user gesture
+  if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+    try {
+      const permission = await DeviceOrientationEvent.requestPermission();
+      if (permission !== 'granted') {
+        tiltEl.textContent = 'Permission denied';
+        return;
+      }
+    } catch (err) {
+      tiltEl.textContent = 'Sensor error: ' + err.message;
+      return;
+    }
+  }
+
+  window.addEventListener('deviceorientation', handleOrientation);
+  gyroEnabled = true;
+  gyroBtn.textContent = 'Tilt Controls ON';
+  gyroBtn.classList.add('active');
+  tiltEl.textContent = 'Tilt your phone to steer!';
+}
 
 init();
 </script>

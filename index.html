@@ -2,20 +2,61 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Snake Game</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Gyro Games</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     background: #1a1a2e;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
     font-family: 'Segoe UI', sans-serif;
     color: #eee;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
     flex-direction: column;
-    gap: 16px;
+  }
+
+  /* Tab bar */
+  .tab-bar {
+    display: flex;
+    background: #0d0d1a;
+    border-bottom: 2px solid #333;
+    flex-shrink: 0;
+    z-index: 10;
+  }
+  .tab-bar button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 16px;
+    font-weight: 600;
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-bottom: 3px solid transparent;
+  }
+  .tab-bar button.active {
+    color: #0f0;
+    border-bottom-color: #0f0;
+  }
+
+  /* Tab content */
+  .tab-content {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .tab-content.active {
+    display: flex;
+  }
+
+  /* Snake tab */
+  #snake-tab {
+    gap: 12px;
   }
   #header {
     display: flex;
@@ -23,10 +64,12 @@
     font-size: 20px;
   }
   #header span { color: #0f0; }
-  canvas {
+  #game {
     border: 2px solid #0f0;
     border-radius: 4px;
     background: #16213e;
+    max-width: 95vw;
+    max-height: 50vh;
   }
   #message {
     font-size: 18px;
@@ -46,7 +89,7 @@
     border-radius: 8px;
     cursor: pointer;
   }
-  #gyro-btn {
+  .gyro-btn {
     display: none;
     padding: 10px 20px;
     font-size: 16px;
@@ -56,12 +99,11 @@
     border-radius: 8px;
     cursor: pointer;
   }
-  #gyro-btn.active {
+  .gyro-btn.active {
     background: #0f0;
     color: #1a1a2e;
   }
-  #tilt-indicator {
-    display: none;
+  .tilt-indicator {
     font-size: 14px;
     color: #666;
     height: 20px;
@@ -69,24 +111,169 @@
   @media (pointer: coarse) {
     .controls { display: grid; grid-template-columns: repeat(3, 56px); justify-items: center; }
     .controls button:active { background: #0f03; }
-    #gyro-btn { display: inline-block; }
-    #tilt-indicator { display: block; }
+    .gyro-btn { display: inline-block; }
+  }
+
+  /* Ball tab */
+  #ball-tab {
+    position: relative;
+    background: #111;
+  }
+  #ball-canvas {
+    width: 100%;
+    height: 100%;
+  }
+  #ball-start-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.7);
+    gap: 20px;
+    z-index: 5;
+  }
+  #ball-start-overlay h2 {
+    font-size: 28px;
+    color: #fff;
+  }
+  #ball-start-overlay p {
+    color: #aaa;
+    font-size: 16px;
+    text-align: center;
+    padding: 0 20px;
+  }
+  #ball-start-btn {
+    padding: 16px 40px;
+    font-size: 20px;
+    border: 2px solid #f0a030;
+    background: linear-gradient(135deg, #f0a030, #e06020);
+    color: #fff;
+    border-radius: 50px;
+    cursor: pointer;
+    font-weight: 700;
+    box-shadow: 0 0 30px rgba(240,160,48,0.3);
+  }
+  #ball-style-toggle {
+    padding: 10px 24px;
+    font-size: 14px;
+    border: 1px solid #666;
+    background: #222;
+    color: #ccc;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  #ball-info {
+    position: absolute;
+    bottom: 12px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 13px;
+    color: #555;
+    z-index: 2;
+    pointer-events: none;
   }
 </style>
 </head>
 <body>
+
+<!-- Tab Bar -->
+<div class="tab-bar">
+  <button class="active" onclick="switchTab('snake')">Snake Game</button>
+  <button onclick="switchTab('ball')">Gyro Ball</button>
+</div>
+
+<!-- Snake Game Tab -->
+<div id="snake-tab" class="tab-content active">
   <div id="header">Score: <span id="score">0</span> &nbsp; Best: <span id="best">0</span></div>
   <canvas id="game" width="400" height="400"></canvas>
   <div id="message">Press any arrow key or tap to start</div>
-  <button id="gyro-btn" onclick="toggleGyro()">Enable Tilt Controls</button>
-  <div id="tilt-indicator"></div>
+  <button class="gyro-btn" id="snake-gyro-btn" onclick="toggleSnakeGyro()">Enable Tilt Controls</button>
+  <div class="tilt-indicator" id="snake-tilt"></div>
   <div class="controls">
     <div></div><button onclick="setDir(0,-1)">&#9650;</button><div></div>
     <button onclick="setDir(-1,0)">&#9664;</button>
     <button onclick="setDir(0,1)">&#9660;</button>
     <button onclick="setDir(1,0)">&#9654;</button>
   </div>
+</div>
+
+<!-- Gyro Ball Tab -->
+<div id="ball-tab" class="tab-content">
+  <canvas id="ball-canvas"></canvas>
+  <div id="ball-start-overlay">
+    <h2>Gyro Ball</h2>
+    <p>Tilt your device to roll the ball around. It bounces off walls with real physics!</p>
+    <button id="ball-start-btn" onclick="startBall()">Start Rolling</button>
+    <button id="ball-style-toggle" onclick="cycleBallStyle()">Style: Shiny Chrome</button>
+  </div>
+  <div id="ball-info"></div>
+</div>
+
 <script>
+// ==================== TAB SWITCHING ====================
+let currentTab = 'snake';
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-bar button').forEach(el => el.classList.remove('active'));
+  document.getElementById(tab + '-tab').classList.add('active');
+  document.querySelectorAll('.tab-bar button').forEach(btn => {
+    if ((tab === 'snake' && btn.textContent === 'Snake Game') ||
+        (tab === 'ball' && btn.textContent === 'Gyro Ball')) {
+      btn.classList.add('active');
+    }
+  });
+  if (tab === 'ball') resizeBallCanvas();
+}
+
+// ==================== GYRO PERMISSION (shared) ====================
+let gyroPermissionGranted = false;
+async function requestGyroPermission() {
+  if (gyroPermissionGranted) return true;
+  if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+    try {
+      const perm = await DeviceOrientationEvent.requestPermission();
+      if (perm !== 'granted') return false;
+    } catch (e) {
+      return false;
+    }
+  }
+  gyroPermissionGranted = true;
+  return true;
+}
+
+// Orientation-aware tilt values (fixes iPad landscape issues)
+function getTilt(e) {
+  let beta = e.beta || 0;   // front/back
+  let gamma = e.gamma || 0; // left/right
+
+  // Adjust for screen orientation (iPad landscape, etc.)
+  const orient = screen.orientation ? screen.orientation.angle : (window.orientation || 0);
+  let tiltX, tiltY;
+  switch (orient) {
+    case 90:
+      tiltX = beta;
+      tiltY = -gamma;
+      break;
+    case -90: case 270:
+      tiltX = -beta;
+      tiltY = gamma;
+      break;
+    case 180:
+      tiltX = -gamma;
+      tiltY = -beta;
+      break;
+    default: // 0, portrait
+      tiltX = gamma;
+      tiltY = beta;
+  }
+  return { tiltX, tiltY };
+}
+
+// ==================== SNAKE GAME ====================
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const scoreEl = document.getElementById('score');
@@ -104,7 +291,7 @@ function init() {
   score = 0;
   scoreEl.textContent = 0;
   placeFood();
-  draw();
+  drawSnake();
 }
 
 function placeFood() {
@@ -113,17 +300,13 @@ function placeFood() {
   } while (snake.some(s => s.x === food.x && s.y === food.y));
 }
 
-function draw() {
+function drawSnake() {
   ctx.fillStyle = '#16213e';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // food
   ctx.fillStyle = '#e94560';
   ctx.beginPath();
   ctx.arc(food.x * GRID + GRID/2, food.y * GRID + GRID/2, GRID/2 - 2, 0, Math.PI * 2);
   ctx.fill();
-
-  // snake
   snake.forEach((s, i) => {
     ctx.fillStyle = i === 0 ? '#0f0' : '#0a0';
     ctx.fillRect(s.x * GRID + 1, s.y * GRID + 1, GRID - 2, GRID - 2);
@@ -133,14 +316,9 @@ function draw() {
 function update() {
   dir = nextDir;
   const head = {x: snake[0].x + dir.x, y: snake[0].y + dir.y};
-
-  // wall collision
   if (head.x < 0 || head.x >= CELLS || head.y < 0 || head.y >= CELLS) return gameOver();
-  // self collision
   if (snake.some(s => s.x === head.x && s.y === head.y)) return gameOver();
-
   snake.unshift(head);
-
   if (head.x === food.x && head.y === food.y) {
     score++;
     scoreEl.textContent = score;
@@ -148,7 +326,7 @@ function update() {
   } else {
     snake.pop();
   }
-  draw();
+  drawSnake();
 }
 
 function gameOver() {
@@ -164,7 +342,7 @@ function gameOver() {
   ctx.fillText('GAME OVER', canvas.width/2, canvas.height/2);
 }
 
-function start() {
+function startSnake() {
   init();
   running = true;
   msgEl.textContent = '';
@@ -172,21 +350,20 @@ function start() {
 }
 
 function setDir(x, y) {
-  if (!running) { start(); return; }
-  // prevent reversing
+  if (!running) { startSnake(); return; }
   if (dir.x === -x && dir.y === -y) return;
   nextDir = {x, y};
 }
 
 document.addEventListener('keydown', e => {
-  const map = {ArrowUp: [0,-1], ArrowDown: [0,1], ArrowLeft: [-1,0], ArrowRight: [1,0],
-               w: [0,-1], s: [0,1], a: [-1,0], d: [1,0]};
+  if (currentTab !== 'snake') return;
+  const map = {ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0],
+               w:[0,-1],s:[0,1],a:[-1,0],d:[1,0]};
   const d = map[e.key];
   if (d) { e.preventDefault(); setDir(d[0], d[1]); }
-  else if (!running) start();
+  else if (!running) startSnake();
 });
 
-// swipe support
 let tx, ty;
 canvas.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; });
 canvas.addEventListener('touchend', e => {
@@ -196,68 +373,333 @@ canvas.addEventListener('touchend', e => {
   else setDir(0, dy > 0 ? 1 : -1);
 });
 
-// Gyroscope / tilt controls
-let gyroEnabled = false;
-const gyroBtn = document.getElementById('gyro-btn');
-const tiltEl = document.getElementById('tilt-indicator');
-const TILT_THRESHOLD = 15; // degrees of tilt needed to trigger direction change
+// Snake gyro
+let snakeGyroEnabled = false;
+const snakeGyroBtn = document.getElementById('snake-gyro-btn');
+const snakeTiltEl = document.getElementById('snake-tilt');
+const TILT_THRESHOLD = 15;
 
-function handleOrientation(e) {
-  if (!gyroEnabled || !running) return;
-
-  const beta = e.beta;   // front-to-back tilt: -180 to 180 (positive = tilted forward)
-  const gamma = e.gamma;  // left-to-right tilt: -90 to 90 (positive = tilted right)
-
-  tiltEl.textContent = `Tilt: L/R ${Math.round(gamma)}° F/B ${Math.round(beta)}°`;
-
-  const absGamma = Math.abs(gamma);
-  const absBeta = Math.abs(beta);
-
-  // Only change direction if tilt exceeds threshold
-  if (absGamma < TILT_THRESHOLD && absBeta < TILT_THRESHOLD) return;
-
-  // Pick the stronger axis
-  if (absGamma > absBeta) {
-    // left/right tilt dominates
-    setDir(gamma > 0 ? 1 : -1, 0);
-  } else {
-    // forward/back tilt dominates
-    setDir(0, beta > 0 ? 1 : -1);
-  }
+function handleSnakeOrientation(e) {
+  if (!snakeGyroEnabled || !running) return;
+  const { tiltX, tiltY } = getTilt(e);
+  snakeTiltEl.textContent = `Tilt: L/R ${Math.round(tiltX)}° F/B ${Math.round(tiltY)}°`;
+  const ax = Math.abs(tiltX), ay = Math.abs(tiltY);
+  if (ax < TILT_THRESHOLD && ay < TILT_THRESHOLD) return;
+  if (ax > ay) setDir(tiltX > 0 ? 1 : -1, 0);
+  else setDir(0, tiltY > 0 ? 1 : -1);
 }
 
-async function toggleGyro() {
-  if (gyroEnabled) {
-    gyroEnabled = false;
-    window.removeEventListener('deviceorientation', handleOrientation);
-    gyroBtn.textContent = 'Enable Tilt Controls';
-    gyroBtn.classList.remove('active');
-    tiltEl.textContent = '';
+async function toggleSnakeGyro() {
+  if (snakeGyroEnabled) {
+    snakeGyroEnabled = false;
+    window.removeEventListener('deviceorientation', handleSnakeOrientation);
+    snakeGyroBtn.textContent = 'Enable Tilt Controls';
+    snakeGyroBtn.classList.remove('active');
+    snakeTiltEl.textContent = '';
     return;
   }
-
-  // iOS 13+ requires permission request from a user gesture
-  if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-    try {
-      const permission = await DeviceOrientationEvent.requestPermission();
-      if (permission !== 'granted') {
-        tiltEl.textContent = 'Permission denied';
-        return;
-      }
-    } catch (err) {
-      tiltEl.textContent = 'Sensor error: ' + err.message;
-      return;
-    }
+  if (!(await requestGyroPermission())) {
+    snakeTiltEl.textContent = 'Permission denied';
+    return;
   }
-
-  window.addEventListener('deviceorientation', handleOrientation);
-  gyroEnabled = true;
-  gyroBtn.textContent = 'Tilt Controls ON';
-  gyroBtn.classList.add('active');
-  tiltEl.textContent = 'Tilt your phone to steer!';
+  window.addEventListener('deviceorientation', handleSnakeOrientation);
+  snakeGyroEnabled = true;
+  snakeGyroBtn.textContent = 'Tilt Controls ON';
+  snakeGyroBtn.classList.add('active');
+  snakeTiltEl.textContent = 'Tilt your device to steer!';
 }
 
 init();
+
+// ==================== GYRO BALL ====================
+const ballCanvas = document.getElementById('ball-canvas');
+const bctx = ballCanvas.getContext('2d');
+const ballOverlay = document.getElementById('ball-start-overlay');
+const ballInfo = document.getElementById('ball-info');
+const ballStyleBtn = document.getElementById('ball-style-toggle');
+
+const BALL_STYLES = ['chrome', 'rocky', 'glass'];
+const BALL_LABELS = ['Shiny Chrome', 'Rocky Stone', 'Glass Marble'];
+let ballStyleIdx = 0;
+let ballActive = false;
+let ballRAF = null;
+
+// Ball physics
+const ball = {
+  x: 0, y: 0,
+  vx: 0, vy: 0,
+  radius: 30,
+  rotation: 0,
+  rotationX: 0,
+};
+
+const FRICTION = 0.985;
+const BOUNCE = 0.6;
+const GRAVITY_SCALE = 0.4;
+
+function resizeBallCanvas() {
+  ballCanvas.width = ballCanvas.parentElement.clientWidth;
+  ballCanvas.height = ballCanvas.parentElement.clientHeight;
+  if (!ballActive) {
+    ball.x = ballCanvas.width / 2;
+    ball.y = ballCanvas.height / 2;
+  }
+}
+
+function cycleBallStyle() {
+  ballStyleIdx = (ballStyleIdx + 1) % BALL_STYLES.length;
+  ballStyleBtn.textContent = 'Style: ' + BALL_LABELS[ballStyleIdx];
+}
+
+function drawBall() {
+  const { x, y, radius, rotation, rotationX } = ball;
+  const style = BALL_STYLES[ballStyleIdx];
+  bctx.save();
+  bctx.translate(x, y);
+
+  if (style === 'chrome') {
+    // Shiny metallic ball
+    const grad = bctx.createRadialGradient(-radius * 0.3, -radius * 0.3, radius * 0.05, 0, 0, radius);
+    grad.addColorStop(0, '#fff');
+    grad.addColorStop(0.2, '#dde');
+    grad.addColorStop(0.5, '#889');
+    grad.addColorStop(0.8, '#445');
+    grad.addColorStop(1, '#222');
+    bctx.beginPath();
+    bctx.arc(0, 0, radius, 0, Math.PI * 2);
+    bctx.fillStyle = grad;
+    bctx.fill();
+
+    // Reflection lines that rotate
+    bctx.save();
+    bctx.rotate(rotation);
+    bctx.beginPath();
+    bctx.arc(0, 0, radius, 0, Math.PI * 2);
+    bctx.clip();
+    for (let i = -3; i <= 3; i++) {
+      bctx.strokeStyle = `rgba(255,255,255,${0.08 + 0.03 * Math.cos(rotationX + i)})`;
+      bctx.lineWidth = 2;
+      bctx.beginPath();
+      bctx.moveTo(i * 12 - radius, -radius);
+      bctx.quadraticCurveTo(i * 12, 0, i * 12 + radius * 0.3, radius);
+      bctx.stroke();
+    }
+    bctx.restore();
+
+    // Highlight
+    const hl = bctx.createRadialGradient(-radius * 0.35, -radius * 0.35, 1, -radius * 0.2, -radius * 0.2, radius * 0.5);
+    hl.addColorStop(0, 'rgba(255,255,255,0.9)');
+    hl.addColorStop(1, 'rgba(255,255,255,0)');
+    bctx.beginPath();
+    bctx.arc(0, 0, radius, 0, Math.PI * 2);
+    bctx.fillStyle = hl;
+    bctx.fill();
+
+  } else if (style === 'rocky') {
+    // Rocky stone ball
+    const grad = bctx.createRadialGradient(-radius * 0.2, -radius * 0.2, 0, 0, 0, radius);
+    grad.addColorStop(0, '#a89080');
+    grad.addColorStop(0.4, '#8b7355');
+    grad.addColorStop(0.8, '#5c4033');
+    grad.addColorStop(1, '#2a1f14');
+    bctx.beginPath();
+    bctx.arc(0, 0, radius, 0, Math.PI * 2);
+    bctx.fillStyle = grad;
+    bctx.fill();
+
+    // Rock texture (rotating cracks)
+    bctx.save();
+    bctx.rotate(rotation);
+    bctx.beginPath();
+    bctx.arc(0, 0, radius, 0, Math.PI * 2);
+    bctx.clip();
+    const crackSeed = [
+      [-8,-12,5,8,15,-5], [10,-8,-12,15,8,20], [-15,5,0,-10,12,0],
+      [5,15,-8,-5,18,10], [-20,0,0,12,10,-15], [12,-18,-5,5,-18,8]
+    ];
+    crackSeed.forEach(c => {
+      bctx.strokeStyle = 'rgba(0,0,0,0.25)';
+      bctx.lineWidth = 1.5;
+      bctx.beginPath();
+      bctx.moveTo(c[0], c[1]);
+      bctx.lineTo(c[2], c[3]);
+      bctx.lineTo(c[4], c[5]);
+      bctx.stroke();
+    });
+    // Speckles
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2 + rotation * 0.5;
+      const r = radius * (0.3 + 0.5 * ((i * 7 + 3) % 11) / 11);
+      bctx.fillStyle = `rgba(0,0,0,${0.15 + 0.1 * (i % 3)})`;
+      bctx.beginPath();
+      bctx.arc(Math.cos(a) * r, Math.sin(a) * r, 2 + (i % 3), 0, Math.PI * 2);
+      bctx.fill();
+    }
+    bctx.restore();
+
+    // Subtle highlight
+    const hl = bctx.createRadialGradient(-radius * 0.3, -radius * 0.3, 1, 0, 0, radius * 0.7);
+    hl.addColorStop(0, 'rgba(255,255,255,0.2)');
+    hl.addColorStop(1, 'rgba(255,255,255,0)');
+    bctx.beginPath();
+    bctx.arc(0, 0, radius, 0, Math.PI * 2);
+    bctx.fillStyle = hl;
+    bctx.fill();
+
+  } else if (style === 'glass') {
+    // Glass marble
+    const grad = bctx.createRadialGradient(-radius * 0.25, -radius * 0.25, 0, 0, 0, radius);
+    grad.addColorStop(0, 'rgba(100,180,255,0.9)');
+    grad.addColorStop(0.5, 'rgba(30,80,200,0.7)');
+    grad.addColorStop(1, 'rgba(10,20,80,0.85)');
+    bctx.beginPath();
+    bctx.arc(0, 0, radius, 0, Math.PI * 2);
+    bctx.fillStyle = grad;
+    bctx.fill();
+
+    // Inner swirl
+    bctx.save();
+    bctx.rotate(rotation);
+    bctx.beginPath();
+    bctx.arc(0, 0, radius, 0, Math.PI * 2);
+    bctx.clip();
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2;
+      bctx.strokeStyle = `rgba(255,255,255,${0.12 + i * 0.04})`;
+      bctx.lineWidth = 3;
+      bctx.beginPath();
+      bctx.arc(Math.cos(a) * 5, Math.sin(a) * 5, radius * 0.6, a, a + Math.PI * 0.8);
+      bctx.stroke();
+    }
+    bctx.restore();
+
+    // Glass highlight
+    const hl = bctx.createRadialGradient(-radius * 0.35, -radius * 0.4, 1, -radius * 0.2, -radius * 0.3, radius * 0.45);
+    hl.addColorStop(0, 'rgba(255,255,255,0.95)');
+    hl.addColorStop(0.5, 'rgba(255,255,255,0.3)');
+    hl.addColorStop(1, 'rgba(255,255,255,0)');
+    bctx.beginPath();
+    bctx.arc(0, 0, radius, 0, Math.PI * 2);
+    bctx.fillStyle = hl;
+    bctx.fill();
+  }
+
+  // Shadow beneath ball
+  bctx.restore();
+  bctx.save();
+  bctx.translate(x + 4, y + 6);
+  const shadow = bctx.createRadialGradient(0, 0, 0, 0, 0, radius * 1.1);
+  shadow.addColorStop(0, 'rgba(0,0,0,0.25)');
+  shadow.addColorStop(1, 'rgba(0,0,0,0)');
+  bctx.beginPath();
+  bctx.ellipse(0, 0, radius * 1.1, radius * 0.5, 0, 0, Math.PI * 2);
+  bctx.fillStyle = shadow;
+  bctx.fill();
+  bctx.restore();
+}
+
+function drawBallScene() {
+  const w = ballCanvas.width, h = ballCanvas.height;
+
+  // Dark gradient background
+  const bg = bctx.createLinearGradient(0, 0, 0, h);
+  bg.addColorStop(0, '#0a0a18');
+  bg.addColorStop(1, '#1a1a2e');
+  bctx.fillRect(0, 0, w, h);
+
+  // Subtle grid floor
+  bctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  bctx.lineWidth = 1;
+  const gridSize = 50;
+  for (let x = 0; x < w; x += gridSize) {
+    bctx.beginPath(); bctx.moveTo(x, 0); bctx.lineTo(x, h); bctx.stroke();
+  }
+  for (let y = 0; y < h; y += gridSize) {
+    bctx.beginPath(); bctx.moveTo(0, y); bctx.lineTo(w, y); bctx.stroke();
+  }
+
+  // Edge glow
+  bctx.strokeStyle = 'rgba(100,100,255,0.15)';
+  bctx.lineWidth = 2;
+  bctx.strokeRect(1, 1, w - 2, h - 2);
+
+  drawBall();
+}
+
+let lastBallTime = 0;
+let ballTiltX = 0, ballTiltY = 0;
+
+function handleBallOrientation(e) {
+  const t = getTilt(e);
+  ballTiltX = t.tiltX;
+  ballTiltY = t.tiltY;
+}
+
+function ballLoop(timestamp) {
+  if (!ballActive) return;
+  const dt = lastBallTime ? Math.min((timestamp - lastBallTime) / 16.67, 3) : 1;
+  lastBallTime = timestamp;
+
+  const w = ballCanvas.width, h = ballCanvas.height;
+  const r = ball.radius;
+
+  // Apply tilt as acceleration
+  ball.vx += ballTiltX * GRAVITY_SCALE * dt;
+  ball.vy += ballTiltY * GRAVITY_SCALE * dt;
+
+  // Friction
+  ball.vx *= Math.pow(FRICTION, dt);
+  ball.vy *= Math.pow(FRICTION, dt);
+
+  // Move
+  ball.x += ball.vx * dt;
+  ball.y += ball.vy * dt;
+
+  // Bounce off walls
+  if (ball.x - r < 0) { ball.x = r; ball.vx = Math.abs(ball.vx) * BOUNCE; }
+  if (ball.x + r > w) { ball.x = w - r; ball.vx = -Math.abs(ball.vx) * BOUNCE; }
+  if (ball.y - r < 0) { ball.y = r; ball.vy = Math.abs(ball.vy) * BOUNCE; }
+  if (ball.y + r > h) { ball.y = h - r; ball.vy = -Math.abs(ball.vy) * BOUNCE; }
+
+  // Rotation from rolling
+  const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+  ball.rotation += (ball.vx / r) * dt * 0.5;
+  ball.rotationX += (ball.vy / r) * dt * 0.5;
+
+  drawBallScene();
+
+  ballInfo.textContent = `Speed: ${speed.toFixed(1)} | Tilt: ${Math.round(ballTiltX)}°, ${Math.round(ballTiltY)}°`;
+
+  ballRAF = requestAnimationFrame(ballLoop);
+}
+
+async function startBall() {
+  if (!(await requestGyroPermission())) {
+    ballInfo.textContent = 'Gyro permission denied. Tilt controls require sensor access.';
+    return;
+  }
+
+  resizeBallCanvas();
+  ball.x = ballCanvas.width / 2;
+  ball.y = ballCanvas.height / 2;
+  ball.vx = 0;
+  ball.vy = 0;
+  ball.rotation = 0;
+  ball.rotationX = 0;
+
+  ballOverlay.style.display = 'none';
+  ballActive = true;
+  lastBallTime = 0;
+
+  window.addEventListener('deviceorientation', handleBallOrientation);
+  ballRAF = requestAnimationFrame(ballLoop);
+}
+
+window.addEventListener('resize', () => {
+  if (currentTab === 'ball') resizeBallCanvas();
+});
+
+resizeBallCanvas();
 </script>
 </body>
 </html>

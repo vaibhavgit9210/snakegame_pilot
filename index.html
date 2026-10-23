@@ -2,44 +2,64 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#1a1a2e">
 <title>Gyro Games</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23060a13'/%3E%3Ctext x='32' y='46' font-size='38' text-anchor='middle'%3E%F0%9F%90%8D%3C/text%3E%3C/svg%3E">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     background: #1a1a2e;
-    font-family: 'Segoe UI', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
     color: #eee;
     height: 100vh;
+    height: 100dvh; /* the visible area on iPhone, toolbars included */
     overflow: hidden;
     display: flex;
     flex-direction: column;
   }
 
-  /* Tab bar */
+  /* Tab bar: a segmented control, recessed track with a raised thumb */
   .tab-bar {
     display: flex;
+    gap: 2px;
+    align-self: center;
+    width: min(420px, calc(100% - 24px));
+    margin: max(10px, env(safe-area-inset-top)) 0 10px;
+    padding: 3px;
+    border-radius: 999px;
     background: #0d0d1a;
-    border-bottom: 2px solid #333;
+    box-shadow: inset 0 0 0 0.5px rgba(255,255,255,0.08), inset 0 1px 2px rgba(0,0,0,0.4);
     flex-shrink: 0;
     z-index: 10;
   }
   .tab-bar button {
     flex: 1;
-    padding: 14px 0;
-    font-size: 16px;
+    padding: 9px 0;
+    font: inherit;
+    font-size: 15px;
     font-weight: 600;
     background: none;
     border: none;
-    color: #666;
+    border-radius: 999px;
+    color: #8b8ba0;
     cursor: pointer;
-    transition: all 0.2s;
-    border-bottom: 3px solid transparent;
+    transition: color 0.2s, background-color 0.2s, box-shadow 0.2s;
+  }
+  .tab-bar button:hover {
+    color: #c8c8d8;
   }
   .tab-bar button.active {
     color: #0f0;
-    border-bottom-color: #0f0;
+    background: rgba(255,255,255,0.1);
+    box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.18), 0 1px 3px rgba(0,0,0,0.45);
+  }
+  button:focus-visible {
+    outline: 2px solid #0f0;
+    outline-offset: 2px;
   }
 
   /* Tab content */
@@ -58,11 +78,13 @@
   /* Snake tab */
   #snake-tab {
     gap: 12px;
+    padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
   #header {
     display: flex;
     gap: 40px;
     font-size: 20px;
+    font-variant-numeric: tabular-nums;
   }
   #header span { color: #0f0; }
   #game {
@@ -84,25 +106,35 @@
   .controls button {
     width: 56px; height: 56px;
     font-size: 24px;
-    border: 1px solid #0f0;
-    background: #16213e;
+    border: 0;
+    background: rgba(0,255,0,0.07);
+    box-shadow: inset 0 0 0 1px rgba(0,255,0,0.55), inset 0 0.5px 0 rgba(255,255,255,0.14);
     color: #0f0;
-    border-radius: 8px;
+    border-radius: 50%;
     cursor: pointer;
+    transition: background-color 0.15s, transform 0.15s;
   }
   .gyro-btn {
     display: none;
-    padding: 10px 20px;
+    padding: 11px 22px;
+    font: inherit;
     font-size: 16px;
-    border: 1px solid #0f0;
-    background: #16213e;
+    font-weight: 600;
+    border: 0;
+    background: rgba(0,255,0,0.07);
+    box-shadow: inset 0 0 0 1px rgba(0,255,0,0.55), inset 0 0.5px 0 rgba(255,255,255,0.14);
     color: #0f0;
-    border-radius: 8px;
+    border-radius: 999px;
     cursor: pointer;
+    transition: background-color 0.15s, transform 0.15s;
+  }
+  .gyro-btn:active {
+    transform: scale(0.97);
   }
   .gyro-btn.active {
     background: #0f0;
     color: #1a1a2e;
+    box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.6), 0 4px 18px rgba(0,255,0,0.3);
   }
   .tilt-indicator {
     font-size: 14px;
@@ -111,7 +143,7 @@
   }
   @media (pointer: coarse) {
     .controls { display: grid; grid-template-columns: repeat(3, 56px); justify-items: center; }
-    .controls button:active { background: #0f03; }
+    .controls button:active { background: #0f03; transform: scale(0.94); }
     .gyro-btn { display: inline-block; }
   }
 
@@ -131,12 +163,17 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: rgba(0,0,0,0.7);
+    background: rgba(0,0,0,0.6);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+    backdrop-filter: blur(12px) saturate(140%);
+    padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     gap: 20px;
     z-index: 5;
   }
   #ball-start-overlay h2 {
     font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
     color: #fff;
   }
   #ball-start-overlay p {
@@ -146,35 +183,70 @@
     padding: 0 20px;
   }
   #ball-start-btn {
-    padding: 16px 40px;
+    padding: 18px 42px;
+    font: inherit;
     font-size: 20px;
-    border: 2px solid #f0a030;
+    border: 0;
     background: linear-gradient(135deg, #f0a030, #e06020);
     color: #fff;
-    border-radius: 50px;
+    border-radius: 999px;
     cursor: pointer;
     font-weight: 700;
-    box-shadow: 0 0 30px rgba(240,160,48,0.3);
+    box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.45), 0 8px 30px rgba(240,160,48,0.35);
+    transition: transform 0.15s, box-shadow 0.2s;
+  }
+  #ball-start-btn:hover {
+    box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.45), 0 10px 36px rgba(240,160,48,0.45);
   }
   #ball-style-toggle {
     padding: 10px 24px;
+    font: inherit;
     font-size: 14px;
-    border: 1px solid #666;
-    background: #222;
-    color: #ccc;
-    border-radius: 8px;
+    font-weight: 500;
+    border: 0;
+    background: rgba(255,255,255,0.1);
+    box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.16), inset 0 0 0 0.5px rgba(255,255,255,0.08);
+    color: #ddd;
+    border-radius: 999px;
     cursor: pointer;
+    transition: background-color 0.15s, transform 0.15s;
   }
+  #ball-style-toggle:hover {
+    background: rgba(255,255,255,0.15);
+  }
+  #ball-start-btn:active,
+  #ball-style-toggle:active {
+    transform: scale(0.97);
+  }
+  /* readout: a small glass capsule over the canvas, hidden while empty */
   #ball-info {
     position: absolute;
-    bottom: 12px;
-    left: 0;
-    right: 0;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    left: 50%;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: calc(100% - 24px);
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: rgba(17,17,17,0.55);
+    -webkit-backdrop-filter: blur(12px) saturate(150%);
+    backdrop-filter: blur(12px) saturate(150%);
+    box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.12), inset 0 0 0 0.5px rgba(255,255,255,0.06);
     text-align: center;
     font-size: 13px;
-    color: #555;
+    font-variant-numeric: tabular-nums;
+    color: #9a9aa8;
     z-index: 2;
     pointer-events: none;
+  }
+  #ball-info:empty {
+    display: none;
+  }
+
+  /* Reduce Transparency: solid surfaces, no blur */
+  @media (prefers-reduced-transparency: reduce) {
+    #ball-start-overlay { background: rgba(0,0,0,0.85); -webkit-backdrop-filter: none; backdrop-filter: none; }
+    #ball-info { background: #111; -webkit-backdrop-filter: none; backdrop-filter: none; }
   }
 </style>
 </head>

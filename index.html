@@ -21,6 +21,10 @@
     display: flex;
     flex-direction: column;
   }
+  /* the smoothing above is for the chrome; canvas text (GAME OVER) keeps the default rendering */
+  canvas {
+    -webkit-font-smoothing: auto;
+  }
 
   /* Tab bar: a segmented control, recessed track with a raised thumb */
   .tab-bar {
